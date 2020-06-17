@@ -75,7 +75,7 @@
 
 	<body>
   <img id="logo" src="health-samurai.png"></img>
-  <div id="dd" > DevDays US 2020</div>
+  <div id="dd" > DevDays <br/>US 2020</div>
 
 		<div class="reveal">
 			<div class="slides">
@@ -148,7 +148,7 @@ Load a lot of data quickly!
 
 ![](import.png)
 
-Pipe data trho sockets and runtime
+Pipe data with `POST /Practitioner/$load`
 
 </script></section>
 
@@ -177,6 +177,12 @@ services:
 
 ### Import data (Demo)
 
+* ndjson with 100K US NPI Practitioners
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+### Import data (Demo)
 * 45.287ms for 100K resources
 * 2K/s resources per second 
 
@@ -203,7 +209,7 @@ without eating all memory
 
 ![](export.png)
 
-Pipe data trho
+Pipe data with `GET /Practitioner/$dump`
 
 </script></section>
 
@@ -258,6 +264,26 @@ GET /Practitioner?_count=10&.name$ilike=Da&_total=none
 
 </script></section>
 
+<section data-markdown><script type="text/template" >
+
+### Long (bad) queries (Problem)
+
+![](timeout.png)
+
+DoS your DB
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+#### _timeout parameter (Solution)
+
+> Limit query time
+
+</script></section>
+
+
 
 <section data-markdown><script type="text/template" >
 
@@ -279,9 +305,18 @@ GET /Practitioner?_count=10&.name$ilike=Da&_total=none
 
 </script></section>
 
+
 <section data-markdown><script type="text/template" >
 
-### Indices (Demo Problem)
+### Indices (Solution)
+
+> Users manage indices!
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Demo)
 
 ```
 GET /Practitioner?_count=10&.name$ilike=David
@@ -291,14 +326,6 @@ GET /Practitioner?_count=10&.name$ilike=Dave&_explain=analyze
 ```
 
 500ms
-</script></section>
-
-<section data-markdown><script type="text/template" >
-
-### Indices (Solution)
-
-> Users are responsible for indices!
-
 </script></section>
 
 
@@ -341,24 +368,179 @@ GET /Practitioner?_count=10&\
 
 </script></section>
 
+<section data-markdown><script type="text/template" >
+
+### Chained search & JOINs (Problem)
+
+* JOIN & SORT kill your db performance
+
+> Request for real high load  system
+> should hit only one index for one table!
+
+
+</script></section>
 
 <section data-markdown><script type="text/template" >
 
-### Long (bad) queries (Problem)
+### Denormalization (Solution)
 
-![](timeout.png)
+Search Encounters by Patient age
 
+```yaml
+resourceType: Encounter
+status: ...
+#...
+patient:
+  id: pt-1
+  # denorm elements
+  resource:
+    birthDate: '1980-03-05'
+    ...
+```
 
-DB DDOS
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Denormalization (Price)
+
+* keep consistent!
+* use subscriptions?
+* use periodic jobs?
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Denormalization (Bulk update)
+
+```sql
+UPDATE encounter
+set resource = jsonb_set(
+   encounter.resource,
+   '{subject, resource}',
+   jsonb_build_object('birthDate', patient.resource->'birthDate')
+)
+FROM patient
+WHERE patient.id = encounter.resource#>>'{subject,id}'
+and patient.resource->>'birthDate' <> encounter.resource#>>'{subject,resource,birthDate}'
+returning encounter.resource;
+```
 
 </script></section>
 
 
 <section data-markdown><script type="text/template" >
 
-#### _timeout parameter (Solution)
+### Multidimensional search
 
-> Limit query time
+```
+GET /Practitioner/$lookup?name=lk\
+  &by=name.family,name.given,identifier.value;\
+      address.city,address.state,qualification.code.text;\
+      address.line\
+  &sort=name.family,name.given\
+  &mode=index\
+  &q=dav+bron
+```
+
+[docs](https://docs.aidbox.app/basic-concepts/search-1/usdlookup)
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Custom SQL queries
+
+```
+PUT /AidboxQuery/daily-report
+
+params:
+  date:
+     isRequired: true
+query: |
+  SELECT 
+     resource->>'class' as class, 
+     count(*) as count
+  FROM encounter 
+  WHERE {{params.date}}
+  BETWEEN (resource#>>'{period,start}')::date 
+  AND (resource#>>'{period,end}')::date
+  GROUP BY resource->>'class'
+```
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Custom SQL queries
+
+```
+GET /$query/daily-report?date=2013-06-08
+```
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Custom SQL queries (Problems)
+
+Not composable with FHIR search params
+
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### v2 SearchQuery
+
+```
+PUT /SearchQuery/q-1
+
+resource: {id: 'Patient'}
+as: pt
+total: true 
+query:
+  where: "(pt.resource->>'birthDate')::date < '1980-01-01'"
+  order-by: pt.id desc
+params:
+   gender:
+     type: string
+     where: "pt.resource->>'gender' = {{params.gender}}"
+   family:
+     type: string
+     format: '% ?%'
+     where: |
+       aidbox_text_search(knife_extract_text(pt.resource, $$[["name","family"]]$$)) 
+       ilike {{params.family}}
+```
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### v2 SearchQuery
+
+```
+GET /alpha/Patient?query=q-1&_page=2&_count=3&_total=none
+```
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Aidbox v3
+
+* composable search parameters
+* configurable sql
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### GraphQL - N+1
 
 </script></section>
 
