@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>FHIR Pro Tips</title>
+
+		<meta name="description" content="Slides for FHIR DevDays 2019; Redmond">
+		<meta name="author" content="Nikolai Ryzhikov">
+
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/white.css" id="theme">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+    <style>
+     h1, h2, h3 { color: #ea4a35!important; }
+     .reveal section img { background: white; border: none; box-shadow: none; }
+     hr {
+      border-color: #e94a35;
+      background-color: #e94a35;
+      height: 0px
+     }
+     #logo {
+       position: absolute;
+       top: 40px;
+       right: 60px;
+       height: 60px;
+       z-index: 1000;
+     }
+     #dd {
+       background: no-repeat url('devdays.svg');
+       position: absolute;
+       top: 40px;
+       left: 60px;
+       z-index: 1000;
+       height: 50px;
+       width: 150px;
+       padding-left: 56px;
+       padding-top: 2px;
+       font-size: 23px;
+       color: #666;
+     }
+
+.reveal .controls .navigate-left, .reveal .controls .navigate-left.enabled
+{
+    border-right-color: #e94a35;
+}
+.reveal .controls .navigate-right, .reveal .controls .navigate-right.enabled
+
+{
+    border-left-color: #e94a35;
+}
+      </style>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+  <img id="logo" src="health-samurai.png"></img>
+  <div id="dd" > DevDays US 2020</div>
+
+		<div class="reveal">
+			<div class="slides">
+
+<section data-markdown><script type="text/template" >
+
+## FHIR pro tips
+
+---
+
+Nikolai Ryzhikov @ Health Samurai
+
+@niquola (tw, gm, gh)
+
+</script></section>
+
+<section>
+
+<img style="height: 100px;" src="health-samurai.png"/>
+
+<h4 style="color: #555; font-family: 'Gotham Pro',Arial,sans-serif; font-size: 44px; margin: 60px 0;">
+Let's implement your<br/> ideas in FHIR
+</h4>
+
+<style>
+ .prods img {
+    display: inline-blocks;
+ }
+</style>
+<div class="prods">
+  <img style="height: 33px; margin-right: 60px" src="aidbox.svg"/>
+  <img src="fb.svg"/>
+</div>
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+# Trade-Off
+
+> a situation in which you accept something you do not like
+> in order to have something that you want
+
+Finde a Compromise!
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Import data (Problem)
+
+Load a lot of data quickly!
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Import data (Details)
+
+* memory pressure
+* bundle size
+* validation
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Import data (Solution)
+
+![](import.png)
+
+Pipe data trho sockets and runtime
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### [Install Devbox](https://docs.aidbox.app/installation/setup-aidbox.dev)
+
+```yaml
+services:
+  devbox:
+    image: "${AIDBOX_IMAGE}"
+    depends_on: ["devbox-db"]
+    links: ["devbox-db:database"]
+    ports:    ["${AIDBOX_PORT}:${AIDBOX_PORT}"]
+    env_file: ['.env']
+    environment: { PGHOST: database }
+  devbox-db:
+    image: "${PGIMAGE}"
+    ports: [ "${PGHOSTPORT}:${PGPORT}" ]
+    volumes: [ "./pgdata:/data"]
+```
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Import data (Demo)
+
+* 45.287ms for 100K resources
+* 2K/s resources per second 
+
+TODO:
+
+* upload vs download :(HTTP)
+* backpressure by websocket
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Export (Problem)
+
+How to load a lot of data from server
+
+without eating all memory
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+### Export data (Solution)
+
+![](export.png)
+
+Pipe data trho
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+### Export data (Demo)
+
+```
+curl -u cli:secret \
+  'localhost:8765/Practitioner/$dump' > res.json
+
+curl -X POST -u cli:secret  \
+  -H 'content-type:text/yaml' \
+ 'http://localhost:8765/$dump-sql' -d @query.yaml  > data.csv
+
+```
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### _count (Problem)
+
+> To calculate Bundle.total
+> server has to run two queries!
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### _count (Solution)
+
+```
+countMethod ( _total ) = none | estimate | count
+```
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### _count (Demo)
+
+```
+GET /Practitioner?_count=10&.name$ilike=Da
+
+GET /Practitioner?_count=10&.name$ilike=Da&_total=none
+
+```
+
+500 ms vs 30 ms
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Problem)
+
+* storage volume
+* slow insert
+* badly composable
+
+> You can not just index everything
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Problem)
+
+![](indices.png)
+
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Demo Problem)
+
+```
+GET /Practitioner?_count=10&.name$ilike=David
+
+GET /Practitioner?_count=10&.name$ilike=Dave&_explain=analyze
+
+```
+
+500ms
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Solution)
+
+> Users are responsible for indices!
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Indices (Demo)
+
+```
+drop index if exists pr_name_ilike;
+create index pr_name_ilike on practitioner using gin (
+  (resource#>>'{name}') gin_trgm_ops
+);
+vacuum analyze practitioner;
+
+```
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Indices composition (Complication)
+
+```
+GET /Practitioner?_count=10&\
+  .qualification.0.code.coding.0.code=1041C0700X&\
+  .address.0.state=OH&\
+  _explain=analyze
+
+```
+
+[pg multicolumn idx](https://www.postgresql.org/docs/10/indexes-multicolumn.html)
+</script></section>
+
+<section data-markdown><script type="text/template" >
+
+### Indices composition (Solution)
+
+> Users decide on indices!
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+### Long (bad) queries (Problem)
+
+![](timeout.png)
+
+
+DB DDOS
+
+</script></section>
+
+
+<section data-markdown><script type="text/template" >
+
+#### _timeout parameter (Solution)
+
+> Limit query time
+
+</script></section>
+
+
+<section data-markdown><script type="text/template">
+## Thank you!
+
+---
+
+* Nicola (RIO) in zulip
+* @niquola on github & twitter
+* niquola@health-samurai.io
+
+</script></section>
+
+
+
+    <script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+
+			// More info https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				transition: 'convex', // none/fade/slide/convex/concave/zoom
+
+				// More info https://github.com/hakimel/reveal.js#dependencies
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true },
+					{ src: 'plugin/notes/notes.js', async: true }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
