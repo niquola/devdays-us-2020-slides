@@ -21,7 +21,7 @@ patient: {id: pt-1, resourceType: 'Patient'}
 
 ```
 
-## Request Document
+## Request as a Document/Resource
 
 ```yaml
 request-method: get
@@ -61,6 +61,9 @@ AccessPolicy is a function:
 ```
 policy(request) => {allow/deny, explain?}
 
+evan(policy,request) => {allow/deny, explain?}
+
+# chain
 for each policy:
   Eval(policy, request) => {allow/deny, explain?}
 ```
@@ -84,7 +87,7 @@ Evaluation order:
 
 * Operation Policies
 * User/Client Policies
-* Role Policies
+ * if user has roles: Role Policies
 * Global Policies
 
 Untill first allows!
@@ -127,6 +130,12 @@ SELECT
   AND {{uri}} LIKE '/fhir/Patient/%'
   AND resource#>>'{generalPractitioner,id}' = {{user.data.practitioner_id}}
 FROM patient WHERE id = {{params.resource/id}};
+```
+
+Clojure policy:
+```
+(fn [ctx req]
+  ...)
 ```
 
 ## Debug & Introspection are important
@@ -185,11 +194,17 @@ user:
 uri: '#/Encounter.*'
 request-method: {$enum: ['get', 'post']}
 params:
-  practitioner: .user.data.practitioner_id <--
+  practitioner: .user.data.practitioner_id <--HERE
 ```
 
-Probably we need extended _elements for most of REST API! 
+Probably we need add _elements paramss for most of REST API! 
 read and even create/update
+
+```
+GET /Patient/id?_elements
+
+PATCH /Patient/id?_elements
+```
 
 ## _elements extensions for includes
 
