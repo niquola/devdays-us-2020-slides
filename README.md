@@ -238,8 +238,9 @@ resourceType: Observation
 * dont change resource content
 * dont inject implicit logic based on user
 
-2. Ability to design API to simplify access control
+2. Poka-yoke: Ability to design API to simplify access control
 
+* compartments one example
 * implicit params & elements injection etc
 
 3. Performance and cachability
@@ -263,7 +264,7 @@ resourceType: Observation
 mount: '/compartment/:patient-id/Observation'
 implicit-params:
   subject: .params.patient-id
-  _security: http://.../non-sensitive 
+  _security: http://...|non-sensitive 
 masking:
 - .identifier
 - .name.family
@@ -274,4 +275,24 @@ allow-includes:
   patient:
     elements: {name: {}, birthDate: {}}
 
+```
+
+```
+resourceType: Operation
+action: fhir-create
+resourceType: Observation
+mount: '/compartment/:patient-id/Observation'
+implicit-elements:
+  subject: {id: .params.patient-id, resourceType: Patient }
+  _security: [{system: http://... code: non-sensitive}
+  meta: {source: '_patient'}
+```
+
+```
+resourceType: Operation
+action: fhir-patch
+resourceType: Observation
+mount: '/nurse/:pract-id/Encounter'
+allow-elements:
+  status: {...}
 ```
