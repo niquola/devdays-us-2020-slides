@@ -1,8 +1,10 @@
-# Access Control
+# Access Control in Aidbox
 
+```
 [Client] 
-  -> [Auth Middleware] configured with AccessPolicy resource
-    -> []
+  -> [Authz Middleware] configured with AccessPolicy resource
+    -> [response or deny]
+```
 
 ## Custom resources
 
