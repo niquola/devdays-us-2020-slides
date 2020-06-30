@@ -181,6 +181,12 @@ result:
 
 
 
+## _elements extensions for includes
+
+* nested elements: _elements=name.given
+* (rev)includes elements: _elements=Patient.name
+
+
 ## Compartments
 
 A lot of clients are using our dynamic compartments to simplify Access Policies
@@ -197,4 +203,31 @@ matcho:
 ```
 
 There are request to **write** into compartments
+i.e.:
 
+```
+POST /patient/<pid>/Observation
+
+resourceType: Observation
+...
+
+```
+
+## API Construction as compartments on steroid
+
+
+```
+resourceType: Operation
+action: fhir-search
+resourceType: Observation
+mount: '/compartment/:patient-id/Observation'
+implicit-params:
+  subject: .params.patient-id
+  _security: non-sensitive 
+allow-params:
+  ... 
+allow-includes:
+  patient:
+    elements: {name: {}, birthDate: {}}
+
+```
