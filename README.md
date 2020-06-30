@@ -173,19 +173,36 @@ result:
   query: ['SELECT ? FROM "patient"', admin]
 ```
 
-## Design points
+## Few tricks
 
-1. REST idempotence:  same URI => same resource!
-* dont change resource content
-* dont inject implicit logic based on user
+* enforce specific params with policy
 
 
+```yaml
+user: 
+  role: admin
+  data: {practitioner_id: present?}
+uri: '#/Encounter.*'
+request-method: {$enum: ['get', 'post']}
+params:
+  practitioner: .user.data.practitioner_id <--
+```
+
+Probably we need extended _elements for most of REST API! 
+read and even create/update
 
 ## _elements extensions for includes
 
 * nested elements: _elements=name.given
 * (rev)includes elements: _elements=Patient.name
 
+TODO: fhirpath in params? for masking
+
+```
+_elements=identifier.where(system=ssn).value.mask()
+```
+
+TODO: custom transformation of response?
 
 ## Compartments
 
@@ -213,7 +230,28 @@ resourceType: Observation
 
 ```
 
+## Design points
+
+1. REST idempotence:  same URI => same resource!
+* dont change resource content
+* dont inject implicit logic based on user
+
+2. Ability to design API to simplify access control
+
+* implicit params & elements injection etc
+
+3. Performance and cachability
+
+* policy based on request
+* policy based on data on server
+* policy based on world state
+
+TTL? safe-to-cache?
+
 ## API Construction as compartments on steroid
+
+Define Custom Operations with set of rules
+for implicit params, allowed params, transformations
 
 
 ```
@@ -223,8 +261,12 @@ resourceType: Observation
 mount: '/compartment/:patient-id/Observation'
 implicit-params:
   subject: .params.patient-id
-  _security: non-sensitive 
+  _security: http://.../non-sensitive 
+masking:
+- .identifier
+- .name.family
 allow-params:
+  code: ... 
   ... 
 allow-includes:
   patient:
