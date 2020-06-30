@@ -211,13 +211,16 @@ PATCH /Patient/id?_elements
 * nested elements: _elements=name.given
 * (rev)includes elements: _elements=Patient.name
 
-TODO: fhirpath in params? for masking
+TODO: fhirpath elements (for masking)
 
 ```
 _elements=identifier.where(system=ssn).value.mask()
 ```
 
 TODO: custom transformation of response?
+
+* HS Jute
+* FHIR Mapping
 
 ## Compartments
 
@@ -248,7 +251,8 @@ resourceType: Observation
 ## Design points
 
 1. REST idempotence:  same URI => same resource!
-* dont change resource content
+
+* dont change response content implicitly
 * dont inject implicit logic based on user
 
 2. Poka-yoke: Ability to design API to simplify access control
