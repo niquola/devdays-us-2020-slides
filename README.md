@@ -59,15 +59,13 @@ body:
 
 AccessPolicy is a function:
 ```
-Policy(Request) => {allow/deny, explanation}
+policy(request) => {allow/deny, explain?}
+
+for each policy:
+  Eval(policy, request) => {allow/deny, explain?}
 ```
 
-Different engines:
-
-* JSON Schema and matcho
-* SQL schema
-* combination
-
+Represented as custom resource
 
 ```yaml
 resourceType: AccessPolicy
@@ -81,6 +79,23 @@ link:
 - { resourceType: Client, id: client-1 }
 ...
 ```
+
+Evaluation order:
+
+* Operation Policies
+* User/Client Policies
+* Role Policies
+* Global Policies
+
+Untill first allows!
+
+Different engines:
+
+* JSON Schema and matcho
+* SQL schema
+* combination
+
+
 
 ### examples
 
