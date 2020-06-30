@@ -8,9 +8,10 @@
 
 ## Custom resources
 
-* User
+* User (SCIM like)
 * Role
 * AuthClient
+* Request
 
 ```yaml
 resourceType: User
@@ -85,44 +86,32 @@ link:
 
 JSON schema:
 ```yaml
-resourceType: AccessPolicy
-description: auth users
-engine: json-schema
-schema:
-  type: object
-  properties:
-    uri: { pattern: '/Patient/.*' } 
-    request-method: { const: 'get' }
-  required: ["user"]
-
+type: object
+properties:
+  uri: { pattern: '/Patient/.*' } 
+  request-method: { const: 'get' }
+required: ["user"]
 ```
 
 Matcho:
 ```yaml
-resourceType: AccessPolicy
-engine: matcho
-matcho:
-  user: 
-    role: admin
-    data: {practitioner_id: present?}
-  uri: '#/Encounter.*'
-  request-method: {$enum: ['get', 'post']}
-  params:
-    practitioner: .user.data.practitioner_id
+user: 
+  role: admin
+  data: {practitioner_id: present?}
+uri: '#/Encounter.*'
+request-method: {$enum: ['get', 'post']}
+params:
+  practitioner: .user.data.practitioner_id
 ```
 
 SQL:
-```yaml
-resourceType: AccessPolicy
-engine: sql
-sql:
-  query: |
-    SELECT
-      {{user}} IS NOT NULL
-      AND {{user.data.practitioner_id}} IS NOT NULL
-      AND {{uri}} LIKE '/fhir/Patient/%'
-      AND resource#>>'{generalPractitioner,id}' = {{user.data.practitioner_id}}
-      FROM patient WHERE id = {{params.resource/id}};
+```sql
+SELECT
+  {{user}} IS NOT NULL
+  AND {{user.data.practitioner_id}} IS NOT NULL
+  AND {{uri}} LIKE '/fhir/Patient/%'
+  AND resource#>>'{generalPractitioner,id}' = {{user.data.practitioner_id}}
+FROM patient WHERE id = {{params.resource/id}};
 ```
 
 ## Debug & Introspection are important
@@ -152,12 +141,6 @@ policy:
 
 -- response
 
-request:
-  uri: /Patient
-  request-method: get
-  user: {role: admin}
-  params: {resource/type: Patient}
-  #jwt: ...jwt-claims
 operation:
   request:
   - get
